@@ -16,24 +16,15 @@
 
 ## Установка
 
-<<<<<<< HEAD
  - Для установки нужно выбрать директорию проекта:
  - Потом необходимо выполнить эту команду:
 ```bash
 git clone https://github.com/MP5s/calculator
 ```
  - В выбранной папке появится папка ```calculator``` c проектом.
-=======
-1. Клонируйте репозиторий:
-   ```bash
-   git clone <url>
-   cd calculator
-2. Установите зависимости:
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 
 ## Работа с API
 
-<<<<<<< HEAD
 ### Конфигурация
 #### Переменные среды
 Сначала необходимо открыть файл ```./config/.env``` и установить параметры:
@@ -61,11 +52,11 @@ git clone https://github.com/MP5s/calculator
 ### Запуск
  - Для запуска API необходимо выбрать директорию проекта:
 ```
-cd <путь к папке Calculator_Service>
+cd <путь к папке calculator>
 ```
- - Далее надо запустить файл ```cmd/main.go```:
+ - Далее надо запустить файл ```cmd/calc_service/main.go```:
 ```
-go run cmd/main.go
+go run cmd/calc_service/main.go
 ```
 
 ### Управление
@@ -78,24 +69,11 @@ go run cmd/main.go
 
 ##### Curl
 ```
-=======
-go run ./cmd/calc_service/...
-
-Управление
-Для работы через терминал на Curl настоятельно рекомендую использовать Git Bash.
-Но можно использовать и Postman - приложение для отправки HTTP-запросов, по-моему в нём работать проще.
-
-Добавление вычисления арифметического выражения
-Добавление выражения для вычисления на API.
-
-Curl
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 curl --location 'localhost/api/v1/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
   "expression": <выражение>
 }'
-<<<<<<< HEAD
 ```
 ##### Postman
  - **URL** localhost/api/v1/calculate;
@@ -131,32 +109,6 @@ curl --location 'localhost/api/v1/expressions'
 Получение всех сохранённых выражений(**ID** не нужен).
 
 ```
-=======
-Postman
-URL localhost/api/v1/calculate;
-Запрос POST;
-Body RAW {"expression": <выражение>};
-Нажать на SEND.
-Коды ответа:
-201 - выражение принято для вычисления
-422 - невалидные данные
-500 - что-то пошло не так
-Тело ответа
-{
-    "id": <уникальный идентификатор выражения> // его ID
-}
-Получение списка выражений
-Curl
-curl --location 'localhost/api/v1/expressions'
-Postman
-URL localhost/api/v1/expressions;
-Запрос GET;
-Body NONE;
-Нажать на SEND.
-Тело ответа:
-Получение всех сохранённых выражений(ID не нужен).
-
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 {
     "expressions": [
         {
@@ -171,7 +123,6 @@ Body NONE;
         }
     ]
 }
-<<<<<<< HEAD
 ```
 ##### Коды ответа:
  - 200 - успешно получен список выражений
@@ -198,24 +149,6 @@ curl --location 'localhost/api/v1/expressions/<id выражения>'
 ##### Тело ответа:
 
 ```
-=======
-Коды ответа:
-200 - успешно получен список выражений
-500 - что-то пошло не так
-Получение выражения по его идентификатору
-Получение выражения по его идентификатору.
-
-Примечание: Для того, чтобы получить выражение по его ID, необходимо сохранить полученный при Добавление вычисления арифметического выражения индитефикатор.
-
-Curl
-curl --location 'localhost/api/v1/expressions/<id выражения>'
-Postman:
-URL localhost/api/v1/expressions/<id выражения>;
-Запрос GET;
-Тело NONE;
-Нажать на SEND.
-Тело ответа:
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 {
     "expression":
         {
@@ -224,7 +157,6 @@ URL localhost/api/v1/expressions/<id выражения>;
             "result": <результат выражения>
         }
 }
-<<<<<<< HEAD
 ```
 
 ##### Коды ответа:
@@ -240,22 +172,11 @@ URL localhost/api/v1/expressions/<id выражения>;
 
 ##### Curl
 ```
-=======
-Коды ответа:
-200 - успешно получено выражение
-404 - нет такого выражения
-500 - что-то пошло не так
-Примеры работы с API
-Простой пример
-Делаем запрос на вычисление выражения
-Curl
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 curl --location 'localhost/api/v1/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
   "expression": "2+2/2"
 }'
-<<<<<<< HEAD
 ```
 ##### Postman
  - **URL** localhost/api/v1/calculate;
@@ -285,30 +206,6 @@ curl --location 'localhost/api/v1/expressions/12345' // 12345 - это ID выш
 ##### Ответ
 Статус 200(успешно получено);
 ```
-=======
-Postman
-URL localhost/api/v1/calculate;
-Запрос POST;
-Body RAW {"expression": "2+2/2"};
-Нажать на SEND.
-Ответ
-Статус 201(успешно создано);
-
-{
-    "id": 12345 // пример
-}
-Получаем наше выражение
-Curl
-curl --location 'localhost/api/v1/expressions/12345' // 12345 - это ID выше.
-Postman
-URL localhost/api/v1/expressions/12345;
-Запрос GET;
-Тело NONE;
-Нажать на SEND
-Ответ
-Статус 200(успешно получено);
-
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 {
     "expression":
         {
@@ -317,7 +214,6 @@ URL localhost/api/v1/expressions/12345;
             "result": 321
         }
 }
-<<<<<<< HEAD
 ```
 
 #### Получаем все выражения
@@ -334,19 +230,6 @@ curl --location 'localhost/api/v1/expressions'
 ##### Ответ
 Статус 200(успешно получены);
 ```
-=======
-Получаем все выражения
-Curl
-curl --location 'localhost/api/v1/expressions'
-Postman
-URL localhost/api/v1/expressions;
-Запрос GET;
-Body NONE;
-Нажать на SEND.
-Ответ
-Статус 200(успешно получены);
-
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 {
     "expressions": [
         {
@@ -356,7 +239,6 @@ Body NONE;
         },
     ]
 }
-<<<<<<< HEAD
 ```
 
 ### Пример с ошибкой в запросе №1
@@ -366,17 +248,11 @@ Body NONE;
 ##### Curl
 
 ```
-=======
-Пример с ошибкой в запросе №1
-Делаем неправильный запрос на вычисление выражения
-Curl
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
 curl --location 'localhost/api/v1/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
   "radhgsags": "2+2/2"
 }'
-<<<<<<< HEAD
 ```
 
 ##### Postman
@@ -464,10 +340,3 @@ curl --location 'localhost/api/v1/abc' \
  - [Просмотр выражения по его ID](http://localhost:8080/api/v1/web/expression)
 
 ****ВАЖНО:**** По умолчанию веб-интерфейс выключен. Чтобы его включить, нужно изменить параметр *Веб интерфейс* в **Конфигурация/Другие Параметры**.
-=======
-Postman
-URL localhost/api/v1/calculate;
-Запрос POST;
-Body RAW {"radhgsags": "2+2/2"};
-Нажать на SEND.
->>>>>>> 74a7658c4def7e05c5584b7120ecc3fec9d58df5
