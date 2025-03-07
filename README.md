@@ -7,7 +7,7 @@
 1. Клонируйте репозиторий:
    ```bash
    git clone <url>
-   cd calc_service
+   cd calculator
 2. Установите зависимости:
 
 go mod tidy
