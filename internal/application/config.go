@@ -8,27 +8,21 @@ import (
 	"github.com/MP5s/calculator/pkg/dir"
 )
 
-// Структура конфигурации
-type Config struct {
+type config struct {
 	Debug bool `json:"debug"`
 	Web   bool `json:"web"`
 }
 
-// Создание новой конфигурации
-func LoadConfig() *Config {
-	configFilePath := dir.Json_file()
-	fmt.Println(configFilePath)
-
-	config := &Config{}
-	file, err := os.Open(configFilePath)
+func newConfig() *config {
+	res := new(config)
+	cf, err := os.Open(dir.JsonFile())
 	if err != nil {
-		panic("Unable to open config file")
+		panic("cannot open config file")
 	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(config); err != nil {
-		panic(fmt.Sprintf("Failed to decode config file: %v", err))
+	decoder := json.NewDecoder(cf)
+	err = decoder.Decode(res)
+	if err != nil {
+		panic(fmt.Errorf("cannot decode config file: %v", err))
 	}
-	return config
+	return res
 }

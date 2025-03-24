@@ -12,24 +12,24 @@ import (
 )
 
 type (
-	Arg1Type   = float64
-	Arg2Type   = float64
-	ResultType = float64
+	TaskArg1Type   = float64
+	TaskArg2Type   = float64
+	TaskResultType = float64
 )
 
-type ExprResultType = float64
+type ExpressionResultType = float64
 
 type Task struct {
-	Arg1          Arg1Type      `json:"arg1"`
-	Arg2          Arg2Type      `json:"arg2"`
-	Operation     string        `json:"operation"`
-	OperationTime int           `json:"operation_time"`
-	Status        string        `json:"-"`
-	Result        ResultType    `json:"-"`
-	Done          chan struct{} `json:"-"`
+	Arg1          TaskArg1Type   `json:"arg1"`
+	Arg2          TaskArg2Type   `json:"arg2"`
+	Operation     string         `json:"operation"`
+	OperationTime int            `json:"operation_time"`
+	Status        string         `json:"-"`
+	Result        TaskResultType `json:"-"`
+	Done          chan struct{}  `json:"-"`
 }
 
-type TaskMap = map[TaskID]*Task
+type TaskMap = map[IDTask]*Task
 
 type ConcurrentTaskMap struct {
 	m  TaskMap
@@ -37,10 +37,10 @@ type ConcurrentTaskMap struct {
 }
 
 func NewConcurrentTaskMap() *ConcurrentTaskMap {
-	return &ConcurrentTaskMap{make(map[TaskID]*Task), sync.Mutex{}}
+	return &ConcurrentTaskMap{make(map[IDTask]*Task), sync.Mutex{}}
 }
 
-func (cm *ConcurrentTaskMap) Get(id TaskID) *Task {
+func (cm *ConcurrentTaskMap) Get(id IDTask) *Task {
 	cm.mx.Lock()
 	res, ok := cm.m[id]
 	if !ok {
@@ -53,26 +53,26 @@ func (cm *ConcurrentTaskMap) Get(id TaskID) *Task {
 	return res
 }
 
-func (cm *ConcurrentTaskMap) Add(id TaskID, t *Task) {
+func (cm *ConcurrentTaskMap) Add(id IDTask, t *Task) {
 	cm.mx.Lock()
 	cm.m[id] = t
 	cm.mx.Unlock()
 }
 
-func (cm *ConcurrentTaskMap) Map() *map[TaskID]*Task {
+func (cm *ConcurrentTaskMap) Map() *map[IDTask]*Task {
 	return &cm.m
 }
 
 type TaskID struct {
-	ID TaskID `json:"id"`
+	ID IDTask `json:"id"`
 	Task
 }
 
 func (t *TaskID) Run(debug bool) (res float64) {
 	if debug {
-		log.Printf("Task %d Running\r\n", t.ID)
+		log.Printf("Task %d Runned\r\n", t.ID)
 	}
-	start := time.Now()
+	s := time.Now()
 	switch t.Operation {
 	case "+":
 		res = t.Arg1 + t.Arg2
@@ -83,16 +83,16 @@ func (t *TaskID) Run(debug bool) (res float64) {
 	case "/":
 		res = t.Arg1 / t.Arg2
 	}
-	duration := time.Since(start)
-	duration = (time.Millisecond * time.Duration(t.OperationTime)) - duration
-	time.Sleep(duration)
+	d := time.Since(s)
+	d = (time.Millisecond * time.Duration(t.OperationTime)) - d
+	time.Sleep(d)
 	if debug {
 		log.Printf("Task %d Completed With Result %.2F\r\n", t.ID, res)
 	}
 	return
 }
 
-func parseString(str string) float64 {
+func convertString(str string) float64 {
 	res, err := strconv.ParseFloat(str, 64)
 	if err != nil {
 		panic(err)
@@ -100,152 +100,212 @@ func parseString(str string) float64 {
 	return res
 }
 
-func isOperator(value rune) bool {
+func isSign(value rune) bool {
 	return value == '+' || value == '-' || value == '*' || value == '/'
 }
 
-type TaskID = uint32
+type IDTask = uint32
 
-var ErrInvalidExpr = errors.New("expression is not valid")
-var ErrDivByZero = errors.New("division by zero")
+var Errorexp = errors.New("expression is not valid")
+var Errordel = errors.New("division by zero")
 
-func Calc(expr string, tasks *ConcurrentTaskMap, debug bool) (res ExprResultType, err error) {
-	if len(expr) < 3 {
-		return 0, ErrInvalidExpr
+func Calc(expression string, tasks *ConcurrentTaskMap, debug bool) (res ExpressionResultType, err0 error) {
+	if len(expression) < 3 {
+		return 0, Errorexp
 	}
-	var buffer string
-	var lastOp rune
-	resFlag := false
-	openIdx := -1
-	parenthesisCount := 0
 
-	if isOperator(rune(expr[0])) || isOperator(rune(expr[len(expr)-1])) {
-		return 0, ErrInvalidExpr
+	b := ""
+	c := rune(0)
+	resflag := false
+	isc := -1
+	scc := 0
+
+	if isSign(rune(expression[0])) || isSign(rune(expression[len(expression)-1])) {
+		return 0, Errorexp
 	}
-	if strings.Contains(expr, "(") || strings.Contains(expr, ")") {
-		for i := 0; i < len(expr); i++ {
-			value := expr[i]
+	if strings.Contains(expression, "(") || strings.Contains(expression, ")") {
+		for i := 0; i < len(expression); i++ {
+			value := expression[i]
 			if value == '(' {
-				if parenthesisCount == 0 {
-					openIdx = i
+				if scc == 0 {
+					isc = i
 				}
-				parenthesisCount++
+				scc++
 			}
 			if value == ')' {
-				parenthesisCount--
-				if parenthesisCount == 0 {
-					subExpr := expr[openIdx+1 : i]
-					calc, err := Calc(subExpr, tasks, debug)
+				scc--
+				if scc == 0 {
+					exp := expression[isc+1 : i]
+					calc, err := Calc(exp, tasks, debug)
 					if err != nil {
 						return 0, err
 					}
-					calcStr := strconv.FormatFloat(calc, 'f', 0, 64)
-					expr = strings.Replace(expr, expr[openIdx:i+1], calcStr, 1)
-					i -= len(subExpr)
-					openIdx = -1
+					calcstr := strconv.FormatFloat(calc, 'f', 0, 64)
+					expression = strings.Replace(expression, expression[isc:i+1], calcstr, 1) // Меняем скобки на результат выражения в них
+
+					i -= len(exp)
+					isc = -1
 				}
 			}
 		}
 	}
-	if openIdx != -1 {
-		return 0, ErrInvalidExpr
+	if isc != -1 {
+		return 0, Errorexp
 	}
-	priority := strings.ContainsRune(expr, '*') || strings.ContainsRune(expr, '/')
-	lowPriority := strings.ContainsRune(expr, '+') || strings.ContainsRune(expr, '-')
-	if priority && lowPriority {
-		for i := 1; i < len(expr); i++ {
-			value := rune(expr[i])
+	priority := strings.ContainsRune(expression, '*') || strings.ContainsRune(expression, '/')
+	notpriority := strings.ContainsRune(expression, '+') || strings.ContainsRune(expression, '-')
+	if priority && notpriority {
+		for i := 1; i < len(expression); i++ {
+			value := rune(expression[i])
+			//Умножение и деление
 			if value == '*' || value == '/' {
-				var startIdx int = i - 1
-				if startIdx != 0 {
-					for startIdx >= 0 {
-						if startIdx >= 0 {
-							if isOperator(rune(expr[startIdx])) {
+				var imin int = i - 1
+				if imin != 0 {
+					for imin >= 0 {
+						if imin >= 0 {
+							if isSign(rune(expression[imin])) {
 								break
 							}
 						}
-						startIdx--
+						imin--
 					}
-					startIdx++
+					imin++
 				}
-				endIdx := i + 1
-				if endIdx == len(expr) {
-					endIdx--
+				imax := i + 1
+				if imax == len(expression) {
+					imax--
 				} else {
-					for !isOperator(rune(expr[endIdx])) && endIdx < len(expr)-1 {
-						endIdx++
+					for !isSign(rune(expression[imax])) && imax < len(expression)-1 {
+						imax++
 					}
 				}
-				if endIdx == len(expr)-1 {
-					endIdx++
+				if imax == len(expression)-1 {
+					imax++
 				}
-				subExpr := expr[startIdx:endIdx]
-				calc, err := Calc(subExpr, tasks, debug)
+				exp := expression[imin:imax]
+				calc, err := Calc(exp, tasks, debug)
 				if err != nil {
 					return 0, err
 				}
-				calcStr := strconv.FormatFloat(calc, 'f', 0, 64)
-				expr = strings.Replace(expr, expr[startIdx:endIdx], calcStr, 1)
-				i -= len(subExpr) - 1
+				calcstr := strconv.FormatFloat(calc, 'f', 0, 64)
+				expression = strings.Replace(expression, expression[imin:imax], calcstr, 1) // Меняем скобки на результат выражения в них
+				i -= len(exp) - 1
 			}
-			if isOperator(value) {
-				lastOp = value
+			if value == '+' || value == '-' || value == '*' || value == '/' {
+				c = value
 			}
 		}
 	}
-
-	for _, value := range expr + "s" {
+	for _, value := range expression + "s" {
 		switch {
 		case value == ' ':
 			continue
-		case value >= '0' && value <= '9' || value == '.':
-			buffer += string(value)
-		case isOperator(value) || value == 's':
-			if resFlag {
-				uuid := uuid.New()
-				id := uuid.ID()
-				task := Task{
-					Arg1:          res,
-					Arg2:          parseString(buffer),
-					Operation:     string(lastOp),
-					Status:        "Wait",
-					OperationTime: getOperationTime(lastOp),
-					Done:          make(chan struct{}),
-				}
-				if debug {
-					log.Println("Creating New Task With ID", id)
-				}
-				tasks.Add(id, &task)
-				<-task.Done
-				res = task.Result
-				if debug {
-					log.Printf("Result Task %d(%.2F) processed in Calc", id, task.Result)
+		case value > 47 && value < 58 || value == '.': // Если это цифра
+			b += string(value)
+		case isSign(value) || value == 's': // Если это знак
+			if resflag {
+				switch c {
+				case '+':
+					uuid := uuid.New()
+					id := uuid.ID()
+					t := Task{
+						Arg1:          res,
+						Arg2:          convertString(b),
+						Operation:     "+",
+						Status:        "Wait",
+						OperationTime: TIME_ADDITION_MS,
+						Done:          make(chan struct{}),
+					}
+					if debug {
+						log.Println("rpn.Calc: Create New Task With ID", id)
+					}
+
+					tasks.Add(id, &t) // Записываем задачу
+					<-t.Done
+					res = t.Result
+					if debug {
+						log.Printf("Result Task %d(%.2F) is handle in Calc", id, t.Result)
+					}
+				case '-':
+					uuid := uuid.New()
+					id := uuid.ID()
+					t := Task{
+						Arg1:          res,
+						Arg2:          convertString(b),
+						Operation:     "-",
+						Status:        "Wait",
+						OperationTime: TIME_SUBTRACTION_MS,
+						Done:          make(chan struct{}),
+					}
+					if debug {
+						log.Println("rpn.Calc: Create New Task With ID", id)
+					}
+
+					tasks.Add(id, &t) // Записываем задачу
+					<-t.Done
+					res = t.Result
+					if debug {
+						log.Printf("Result Task %d(%.2F) is handle in Calc", id, t.Result)
+					}
+				case '*':
+					uuid := uuid.New()
+					id := uuid.ID()
+					t := Task{
+						Arg1:          res,
+						Arg2:          convertString(b),
+						Operation:     "*",
+						Status:        "Wait",
+						OperationTime: TIME_MULTIPLICATIONS_MS,
+						Done:          make(chan struct{}),
+					}
+					if debug {
+						log.Println("rpn.Calc: Create New Task With ID", id)
+					}
+
+					tasks.Add(id, &t) // Записываем задачу
+					<-t.Done
+					res = t.Result
+					if debug {
+						log.Printf("Result Task %d(%.2F) is handle in Calc", id, t.Result)
+					}
+				case '/':
+					uuid := uuid.New()
+					id := uuid.ID()
+					arg2 := convertString(b)
+					if arg2 == 0 {
+						return 0, Errordel
+					}
+					t := Task{
+						Arg1:          res,
+						Arg2:          arg2,
+						Operation:     "/",
+						Status:        "Wait",
+						OperationTime: TIME_DIVISIONS_MS,
+						Done:          make(chan struct{}),
+					}
+					if debug {
+						log.Println("rpn.Calc: Create New Task With ID", id)
+					}
+
+					tasks.Add(id, &t) // Записываем задачу
+					<-t.Done
+					res = t.Result
+					if debug {
+						log.Printf("Result Task %d(%.2F) is handle in Calc", id, t.Result)
+					}
 				}
 			} else {
-				resFlag = true
-				res = parseString(buffer)
+				resflag = true
+				res = convertString(b)
 			}
-			buffer = ""
-			lastOp = value
+			b = ""
+			c = value
+
+			/////////////////////////////////////////////////////////////////////////////////////////////
 		case value == 's':
 		default:
-			return 0, ErrInvalidExpr
+			return 0, Errorexp
 		}
 	}
 	return res, nil
-}
-
-func getOperationTime(op rune) int {
-	switch op {
-	case '+':
-		return TIME_ADDITION_MS
-	case '-':
-		return TIME_SUBTRACTION_MS
-	case '*':
-		return TIME_MULTIPLICATIONS_MS
-	case '/':
-		return TIME_DIVISIONS_MS
-	default:
-		return 0
-	}
 }

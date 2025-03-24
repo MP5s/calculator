@@ -11,68 +11,61 @@ import (
 	"github.com/MP5s/calculator/pkg/rpn"
 )
 
-var RequestInterval = time.Millisecond * 1
+// Время запроса агента
+var AgentReqestTime = time.Millisecond * 1
 
-func (app *Application) processTask(body io.ReadCloser) {
-	app.NumGoroutine++
+func (a *Application) worker(body io.ReadCloser) {
+	a.NumGoroutine++
 	defer body.Close()
-
-	data, err := io.ReadAll(body)
+	b, err := io.ReadAll(body)
 	if err != nil {
 		panic(err)
 	}
-
-	var taskResult GetTaskHandlerResult
-	if err := json.Unmarshal(data, &taskResult); err != nil {
-		panic(err)
-	}
-
-	task := taskResult.Task
-	resultValue := task.Run(app.Config.Debug)
-	responseData, err := json.Marshal(AgentResult{ID: task.ID, Result: resultValue})
+	var ResultServer GetTaskHandlerResult
+	err = json.Unmarshal(b, &ResultServer)
 	if err != nil {
 		panic(err)
 	}
-
-	response, err := app.Agent.Post("http://localhost:8080/api/v1/internal/task", "application/json", bytes.NewReader(responseData))
+	t := ResultServer.Task
+	res, err := json.Marshal(AgentResult{ResultServer.Task.ID, t.Run(a.Config.Debug)})
 	if err != nil {
 		panic(err)
 	}
-
-	if app.Config.Debug {
-		log.Println(response.Status)
-		bodyContent, _ := io.ReadAll(response.Body)
-		log.Println(string(bodyContent))
+	resp, err := a.Agent.Post("http://localhost:8080/api/v1/internal/task", "application/json", bytes.NewReader(res))
+	if err != nil {
+		panic(err)
 	}
-
-	app.NumGoroutine--
+	if a.Config.Debug {
+		log.Println(resp.Status)
+		log.Println(io.ReadAll(resp.Body))
+	}
+	a.NumGoroutine--
 }
 
-func (app *Application) startAgent() error {
-	var errResult error
-	doneChannel := make(chan struct{})
-
+// Запуск агента
+func (a *Application) runAgent() error {
+	var res error
+	done := make(chan struct{})
 	go func() {
-		if app.Config.Debug {
-			log.Println("Agent Started")
+		if a.Config.Debug {
+			log.Println("Agent Runned")
 		}
 		for {
-			<-time.After(RequestInterval)
-			if app.NumGoroutine < rpn.COMPUTING_POWER {
-				response, err := app.Agent.Get("http://localhost:8080/api/v1/internal/task")
+			<-time.After(AgentReqestTime)
+			if a.NumGoroutine < rpn.COMPUTING_POWER {
+				resp, err := a.Agent.Get("http://localhost:8080/api/v1/internal/task")
 				if err != nil {
-					errResult = err
+					res = err
 					return
 				}
-				if response.StatusCode == http.StatusNotFound {
+				if resp.StatusCode == http.StatusNotFound {
 					continue
 				}
-				defer response.Body.Close()
-				go app.processTask(response.Body)
+				defer resp.Body.Close()
+				go a.worker(resp.Body)
 			}
 		}
 	}()
-
-	<-doneChannel
-	return errResult
+	<-done
+	return res
 }

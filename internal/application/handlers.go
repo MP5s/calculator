@@ -12,165 +12,132 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Обработчик для добавления выражения через POST http://localhost:8080/api/v1/calculate
-// Тело запроса: {"expression": "<выражение>"}
-func (app *Application) AddExpressionHandler(w http.ResponseWriter, r *http.Request) {
+// Добавление выражения через http://localhost:8080/api/v1/calculate POST.
+// Тело: {"expression": "<выражение>"}
+func (a *Application) AddExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-
 	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
-
-	var request map[string]string
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Failed to decode request body", http.StatusBadRequest)
+	var req map[string]string
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
-
-	expressionStr, exists := request["expression"]
-	if !exists {
-		http.Error(w, "Missing expression", http.StatusBadRequest)
-		return
-	}
-
 	id := uuid.New().ID()
-	expression := Expression{expressionStr, WaitStatus, 0}
-	Expressions[id] = &expression
-
+	str, has := req["expression"]
+	if !has {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
+	e := Expression{str, WaitStatus, 0}
+	Expressions[id] = &e
 	go func() {
-		result, err := rpn.Calc(expressionStr, Tasks, app.Config.Debug)
+		res, err := rpn.Calc(str, Tasks, a.Config.Debug)
 		if err != nil {
-			expression.Status = err.Error()
+			e.Status = err.Error()
 		} else {
-			expression.Status = "OK"
-			expression.Result = result
+			e.Status = "OK"
+			e.Result = res
 		}
 	}()
-
-	responseData, err := json.Marshal(AddHandlerResult{id})
+	data, err := json.Marshal(AddHandlerResult{id})
 	if err != nil {
-		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	w.WriteHeader(http.StatusCreated)
-	w.Write(responseData)
+	w.Write(data)
 }
 
-// Обработчик для получения выражения по ID через GET http://localhost:8080/api/v1/expressions/{id}
-func (app *Application) GetExpressionHandler(w http.ResponseWriter, r *http.Request) {
+// Получение выражения через http://localhost:8080/api/v1/expression/id GET.
+func (a *Application) GetExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-
 	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	vars := mux.Vars(r)
-	strID := vars["id"]
-	id, err := strconv.Atoi(strID)
+	strid := vars["id"]
+	i, err := strconv.Atoi(strid)
 	if err != nil {
-		http.Error(w, "Invalid ID format", http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	expressionID := IDExpression(id)
-	expression, exists := Expressions[expressionID]
-	if !exists {
-		http.Error(w, "Expression not found", http.StatusNotFound)
+	id := IDExpression(i)
+	exp, has := Expressions[id]
+	if !has {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
-	responseData, err := json.Marshal(GetExpressionHandlerResult{ExpressionWithID{expressionID, *expression}})
+	data, err := json.Marshal(GetExpressionHandlerResult{ExpressionWithID{id, *exp}})
 	if err != nil {
-		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	w.Write(responseData)
+	w.Write(data)
 }
 
-// Обработчик для получения всех выражений через GET http://localhost:8080/api/v1/expressions
-func (app *Application) GetExpressionsHandler(w http.ResponseWriter, r *http.Request) {
+func (a *Application) GetExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-
 	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	var expressionsWithID []ExpressionWithID
-	for id, expression := range Expressions {
-		expressionsWithID = append(expressionsWithID, ExpressionWithID{id, *expression})
+	var ExpressionsID []ExpressionWithID
+	for id, e := range Expressions {
+		ExpressionsID = append(ExpressionsID, ExpressionWithID{id, *e})
 	}
-
-	responseData, err := json.Marshal(GetExpressionsHandlerResult{expressionsWithID})
+	data, err := json.Marshal(GetExpressionsHandlerResult{ExpressionsID})
 	if err != nil {
-		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(responseData)
+	w.Write(data)
 }
 
-// Обработчик для задач через GET и POST http://localhost:8080/api/v1/internal/task
-func (app *Application) TaskHandler(w http.ResponseWriter, r *http.Request) {
+func (a *Application) TaskHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		defer r.Body.Close()
-		var taskID rpn.TaskID
-
-		for id, task := range *Tasks.Map() {
-			if task.Status == WaitStatus {
-				taskID = rpn.TaskID{Task: *task, ID: id}
+		var tid rpn.TaskID
+		for id, t := range *Tasks.Map() {
+			if (*t).Status == WaitStatus {
+				tid = rpn.TaskID{Task: *t, ID: id}
 				break
 			}
 		}
-
-		if taskID.ID == 0 {
-			http.Error(w, "No tasks available", http.StatusNotFound)
+		if tid.ID == 0 {
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-
-		responseData, err := json.Marshal(GetTaskHandlerResult{taskID})
+		b, err := json.Marshal(GetTaskHandlerResult{tid})
 		if err != nil {
-			http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
-		(*Tasks.Get(taskID.ID)).Status = CalculationStatus
-		w.Write(responseData)
-
+		(*Tasks.Get(tid.ID)).Status = CalculationStatus
+		w.Write(b)
 	case http.MethodPost:
-		body, err := io.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		}
-
-		var result rpn.AgentResult
-		if err := json.Unmarshal(body, &result); err != nil {
-			http.Error(w, "Failed to decode request body", http.StatusBadRequest)
+		var r AgentResult
+		err = json.Unmarshal(b, &r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		}
-
-		task := Tasks.Get(result.ID)
-		if task == nil {
-			http.Error(w, "Task not found", http.StatusNotFound)
-			return
+		t := Tasks.Get(r.ID)
+		t.Result = r.Result
+		t.Done <- struct{}{}
+		t.Status = "OK"
+		if a.Config.Debug {
+			log.Printf("Result Task %d(%.2F) is handle in TasksMap", r.ID, t.Result)
 		}
-
-		task.Result = result.Result
-		task.Done <- struct{}{}
-		task.Status = "OK"
-
-		if app.Config.Debug {
-			log.Printf("Result Task %d (%.2f) is handled in TasksMap", result.ID, task.Result)
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Task result processed successfully"))
 	}
 }
