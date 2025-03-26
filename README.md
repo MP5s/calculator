@@ -72,13 +72,13 @@ go run cmd/calc_service/main.go
 curl --location 'localhost/api/v1/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
-  "expression": <выражение>
+  "expression": "<выражение>"
 }'
 ```
 ##### Postman
  - **URL** localhost/api/v1/calculate;
  - Запрос **POST**;
- - **Body** **RAW** {"expression": <выражение>};
+ - **Body** **RAW** {"expression": "<выражение>"};
  - Нажать на ****SEND****.
 
 ##### Коды ответа: 
